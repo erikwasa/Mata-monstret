@@ -1,0 +1,19 @@
+{
+  "name": "Mata monstret",
+  "short_name": "Mumsis",
+  "description": "Ett enkelt och lärorikt spel för små barn.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#fff7d6",
+  "theme_color": "#4b7bec",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
