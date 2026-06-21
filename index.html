@@ -3,24 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <title>Mata monstret</title>
+
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <main class="game">
     <section class="top">
       <h1>Mata monstret</h1>
-      <p id="instruction">Tryck på start!</p>
+      <p id="instruction" class="instruction">Välj läge och starta!</p>
+
+      <div id="progress" class="progress" aria-label="Framsteg"></div>
     </section>
 
-    <section class="monster-area">
+    <section id="modeSelector" class="mode-selector" aria-label="Välj spelläge">
+      <button class="mode-button" data-mode="name">
+        <span class="mode-emoji">🍌</span>
+        <span>Ord</span>
+      </button>
+
+      <button class="mode-button" data-mode="color">
+        <span class="mode-emoji">🎨</span>
+        <span>Färger</span>
+      </button>
+
+      <button class="mode-button active" data-mode="mixed">
+        <span class="mode-emoji">✨</span>
+        <span>Blandat</span>
+      </button>
+    </section>
+
+    <section class="monster-area" aria-live="polite">
       <div id="monster" class="monster">😋</div>
       <div id="speech" class="speech">Jag är hungrig!</div>
+
+      <button id="repeatButton" class="repeat-button hidden" type="button">
+        🔊 Hör igen
+      </button>
     </section>
 
-    <section id="choices" class="choices"></section>
+    <section id="choices" class="choices" aria-label="Svarsalternativ"></section>
 
-    <button id="startButton" class="start-button">Starta spelet</button>
+    <section class="bottom">
+      <button id="startButton" class="start-button" type="button">
+        Starta spelet
+      </button>
+    </section>
   </main>
 
   <script src="script.js"></script>
