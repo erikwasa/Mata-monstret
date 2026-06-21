@@ -6,30 +6,51 @@
 
   <title>Mata monstret</title>
 
+  <meta name="theme-color" content="#4b7bec" />
+  <meta name="description" content="Ett enkelt och lärorikt spel för små barn." />
+
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon.svg" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <main class="game">
-    <section class="top">
-      <h1>Mata monstret</h1>
+    <header class="top">
+      <div class="top-row">
+        <div class="app-title">
+          <h1>Mata monstret</h1>
+          <p id="appStatus" class="app-status">Redo att leka</p>
+        </div>
+
+        <button id="adultButton" class="adult-button" type="button" aria-label="Öppna vuxenläge">
+          ⚙️
+        </button>
+      </div>
+
       <p id="instruction" class="instruction">Välj läge och starta!</p>
 
       <div id="progress" class="progress" aria-label="Framsteg"></div>
-    </section>
+    </header>
 
     <section id="modeSelector" class="mode-selector" aria-label="Välj spelläge">
-      <button class="mode-button" data-mode="name">
+      <button class="mode-button" data-mode="name" type="button">
         <span class="mode-emoji">🍌</span>
         <span>Ord</span>
       </button>
 
-      <button class="mode-button" data-mode="color">
+      <button class="mode-button" data-mode="color" type="button">
         <span class="mode-emoji">🎨</span>
         <span>Färger</span>
       </button>
 
-      <button class="mode-button active" data-mode="mixed">
+      <button class="mode-button" data-mode="category" type="button">
+        <span class="mode-emoji">🧺</span>
+        <span>Kategorier</span>
+      </button>
+
+      <button class="mode-button" data-mode="mixed" type="button">
         <span class="mode-emoji">✨</span>
         <span>Blandat</span>
       </button>
@@ -52,6 +73,89 @@
       </button>
     </section>
   </main>
+
+  <section id="settingsPanel" class="settings-panel hidden" aria-label="Vuxenläge">
+    <div class="settings-card">
+      <div class="settings-header">
+        <h2>Vuxenläge</h2>
+
+        <button id="closeSettingsButton" class="close-button" type="button" aria-label="Stäng vuxenläge">
+          ✕
+        </button>
+      </div>
+
+      <p class="settings-help">
+        Här kan du anpassa spelet. Inställningarna sparas på den här mobilen.
+      </p>
+
+      <label class="setting-row">
+        <span>Röst</span>
+        <select id="voiceSelect">
+          <option value="on">På</option>
+          <option value="off">Av</option>
+        </select>
+      </label>
+
+      <label class="setting-row">
+        <span>Antal val</span>
+        <select id="optionCountSelect">
+          <option value="2">2 val</option>
+          <option value="3">3 val</option>
+          <option value="4">4 val</option>
+        </select>
+      </label>
+
+      <label class="setting-row">
+        <span>Rundor</span>
+        <select id="roundCountSelect">
+          <option value="3">3 rundor</option>
+          <option value="5">5 rundor</option>
+          <option value="10">10 rundor</option>
+        </select>
+      </label>
+
+      <div class="settings-group">
+        <h3>Kategorier</h3>
+
+        <label class="check-row">
+          <input class="category-checkbox" type="checkbox" value="mat" />
+          <span>🍌 Mat</span>
+        </label>
+
+        <label class="check-row">
+          <input class="category-checkbox" type="checkbox" value="djur" />
+          <span>🐶 Djur</span>
+        </label>
+
+        <label class="check-row">
+          <input class="category-checkbox" type="checkbox" value="leksak" />
+          <span>🧸 Leksaker</span>
+        </label>
+
+        <label class="check-row">
+          <input class="category-checkbox" type="checkbox" value="fordon" />
+          <span>🚙 Fordon</span>
+        </label>
+
+        <label class="check-row">
+          <input class="category-checkbox" type="checkbox" value="klader" />
+          <span>🧦 Kläder</span>
+        </label>
+      </div>
+
+      <div class="settings-actions">
+        <button id="installButton" class="secondary-button hidden" type="button">
+          Installera appen
+        </button>
+
+        <button id="resetSettingsButton" class="secondary-button" type="button">
+          Återställ
+        </button>
+      </div>
+
+      <p id="settingsMessage" class="settings-message"></p>
+    </div>
+  </section>
 
   <script src="script.js"></script>
 </body>
