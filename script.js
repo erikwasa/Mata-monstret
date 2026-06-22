@@ -1,9 +1,14 @@
-const STORAGE_KEY = "mata-monstret-settings-v3";
-const OLD_STORAGE_KEY = "mata-monstret-settings-v2";
+const STORAGE_KEY = "mata-monstret-settings-v4";
+const OLD_STORAGE_KEYS = [
+  "mata-monstret-settings-v3",
+  "mata-monstret-settings-v2"
+];
 
 const DEFAULT_SETTINGS = {
   selectedMode: "mixed",
+  voiceMode: "custom",
   voiceEnabled: true,
+  effectEnabled: true,
   optionCount: 3,
   maxRounds: 5,
   childName: "",
@@ -12,6 +17,35 @@ const DEFAULT_SETTINGS = {
 };
 
 const DANCE_AFTER_CORRECT = 3;
+
+const EFFECT_PATHS = {
+  correct: "./audio/effects/correct.mp3",
+  wrong: "./audio/effects/wrong.mp3",
+  food: "./audio/effects/food.mp3",
+  dance: "./audio/effects/dance.mp3",
+  end: "./audio/effects/end.mp3",
+  click: "./audio/effects/click.mp3"
+};
+
+const COLOR_VOICE_SLUGS = {
+  "gult": "yellow",
+  "rött": "red",
+  "orange": "orange",
+  "grönt": "green",
+  "blått": "blue",
+  "brunt": "brown",
+  "vitt": "white",
+  "rosa": "pink",
+  "svart": "black"
+};
+
+const CATEGORY_VOICE_SLUGS = {
+  mat: "food",
+  djur: "animal",
+  leksak: "toy",
+  fordon: "vehicle",
+  klader: "clothes"
+};
 
 const CATEGORY_INFO = {
   mat: {
@@ -219,7 +253,6 @@ const items = [
 ];
 
 const body = document.body;
-const gameRoot = document.getElementById("gameRoot");
 const gameTitle = document.getElementById("gameTitle");
 const monster = document.getElementById("monster");
 const speech = document.getElementById("speech");
@@ -239,11 +272,13 @@ const closeSettingsButton = document.getElementById("closeSettingsButton");
 const childNameInput = document.getElementById("childNameInput");
 const monsterNameInput = document.getElementById("monsterNameInput");
 const voiceSelect = document.getElementById("voiceSelect");
+const effectSelect = document.getElementById("effectSelect");
 const optionCountSelect = document.getElementById("optionCountSelect");
 const roundCountSelect = document.getElementById("roundCountSelect");
 const categoryCheckboxes = document.querySelectorAll(".category-checkbox");
 const resetSettingsButton = document.getElementById("resetSettingsButton");
 const installButton = document.getElementById("installButton");
+const testAudioButton = document.getElementById("testAudioButton");
 const settingsMessage = document.getElementById("settingsMessage");
 
 let settings = loadSettings();
@@ -252,6 +287,7 @@ let currentRound = 0;
 let correctAnswers = 0;
 let lastAnswerId = null;
 let lastSpokenText = "";
+let lastVoiceKey = "";
 let buttonsLocked = false;
 let deferredInstallPrompt = null;
 let dancePauseUsed = false;
@@ -272,6 +308,7 @@ function bindEvents() {
   closeSettingsButton.addEventListener("click", closeSettings);
 
   resetSettingsButton.addEventListener("click", resetSettings);
+  testAudioButton.addEventListener("click", testAudio);
 
   childNameInput.addEventListener("input", () => {
     settings.childName = childNameInput.value.trim();
@@ -288,7 +325,14 @@ function bindEvents() {
   });
 
   voiceSelect.addEventListener("change", () => {
-    settings.voiceEnabled = voiceSelect.value === "on";
+    settings.voiceMode = voiceSelect.value;
+    settings.voiceEnabled = settings.voiceMode !== "off";
+    saveSettings();
+    showSettingsMessage("Sparat!");
+  });
+
+  effectSelect.addEventListener("change", () => {
+    settings.effectEnabled = effectSelect.value === "on";
     saveSettings();
     showSettingsMessage("Sparat!");
   });
@@ -311,6 +355,8 @@ function bindEvents() {
 
   modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
+      playEffect("click");
+
       settings.selectedMode = button.dataset.mode;
       saveSettings();
       updateModeButtons();
@@ -327,12 +373,14 @@ function bindEvents() {
 }
 
 function startGame() {
+  playEffect("click");
+
   const activeItems = getActiveItems();
 
   if (activeItems.length < 2) {
     speech.textContent = "Välj minst två saker i vuxenläget.";
     instruction.textContent = "För få saker att leka med";
-    speak("Välj minst två saker i vuxenläget.");
+    speak("Välj minst två saker i vuxenläget.", "settings_need_two_items");
     return;
   }
 
@@ -372,7 +420,7 @@ function nextRound() {
 
   renderProgress();
   renderChoices(currentQuestion.options);
-  speak(currentQuestion.prompt);
+  speak(currentQuestion.prompt, currentQuestion.voiceKey);
 }
 
 function createQuestion() {
@@ -415,6 +463,7 @@ function createNameQuestion(answer) {
     type: "name",
     answer,
     prompt: `Ge mig ${answer.name}!`,
+    voiceKey: `give_${answer.id}`,
     options,
     isCorrect: (item) => item.id === answer.id
   };
@@ -426,12 +475,14 @@ function createColorQuestion(answer) {
   const fallbackWrongOptions = activeItems.filter((item) => item.id !== answer.id);
   const usefulWrongOptions = wrongOptions.length > 0 ? wrongOptions : fallbackWrongOptions;
   const options = createOptions(answer, usefulWrongOptions);
+  const colorSlug = COLOR_VOICE_SLUGS[answer.color] || slugify(answer.color);
 
   return {
     type: "color",
     answer,
     targetColor: answer.color,
     prompt: `Ge mig något ${answer.color}!`,
+    voiceKey: `give_color_${colorSlug}`,
     options,
     isCorrect: (item) => item.color === answer.color
   };
@@ -447,6 +498,7 @@ function createCategoryQuestion() {
   const wrongOptions = activeItems.filter((item) => item.category !== targetCategory);
   const answer = getRandomItem(correctOptions);
   const options = createOptions(answer, wrongOptions);
+  const categorySlug = CATEGORY_VOICE_SLUGS[targetCategory] || slugify(targetCategory);
 
   lastAnswerId = answer.id;
 
@@ -455,6 +507,7 @@ function createCategoryQuestion() {
     answer,
     targetCategory,
     prompt: categoryInfo.prompt,
+    voiceKey: `give_category_${categorySlug}`,
     options,
     isCorrect: (item) => item.category === targetCategory
   };
@@ -509,11 +562,12 @@ function handleCorrectChoice(item, button) {
   button.classList.add("correct");
 
   setMonsterMood("chewing");
+  playEffect("correct");
 
   const feedback = getCorrectFeedback();
 
-  speech.textContent = feedback;
-  speak(feedback);
+  speech.textContent = feedback.text;
+  speak(feedback.text, feedback.voiceKey);
 
   const shouldDance =
     !dancePauseUsed &&
@@ -539,11 +593,26 @@ function getCorrectFeedback() {
   const monsterName = getMonsterName();
 
   const feedbacks = [
-    "Mums! Tack!",
-    "Jättegott!",
-    "Bra matat!",
-    `${monsterName} blir glad!`,
-    "Tack för maten!"
+    {
+      text: "Mums! Tack!",
+      voiceKey: "correct_mums"
+    },
+    {
+      text: "Jättegott!",
+      voiceKey: "correct_good"
+    },
+    {
+      text: "Bra matat!",
+      voiceKey: "correct_feeding"
+    },
+    {
+      text: `${monsterName} blir glad!`,
+      voiceKey: "correct_happy"
+    },
+    {
+      text: "Tack för maten!",
+      voiceKey: "correct_thanks"
+    }
   ];
 
   return getRandomItem(feedbacks);
@@ -555,11 +624,12 @@ function handleWrongChoice(item, button) {
   button.classList.add("wrong");
 
   setMonsterMood("thinking");
+  playEffect("wrong");
 
   const feedback = `Nästan! Det där var ${item.name}. Försök igen.`;
 
   speech.textContent = feedback;
-  speak(feedback);
+  speak(feedback, "try_again");
 
   setTimeout(() => {
     button.classList.remove("wrong");
@@ -583,7 +653,8 @@ function startDancePause() {
   speech.textContent = `${monsterName} dansar!`;
 
   setMonsterMood("dancing");
-  speak(`${monsterName} dansar!`);
+  playEffect("dance");
+  speak(`${monsterName} dansar!`, "dance");
 
   setTimeout(() => {
     nextRound();
@@ -601,15 +672,16 @@ function endGame() {
   const monsterName = getMonsterName();
 
   setMonsterMood("full");
+  playEffect("end");
 
   instruction.textContent = "Bra jobbat!";
 
   if (childName) {
     speech.textContent = `Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`;
-    speak(`Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`);
+    speak(`Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`, "end");
   } else {
     speech.textContent = `Nu är ${monsterName} mätt. Tack för maten!`;
-    speak(`Nu är ${monsterName} mätt. Tack för maten!`);
+    speak(`Nu är ${monsterName} mätt. Tack för maten!`, "end");
   }
 
   startButton.textContent = "Spela igen";
@@ -649,6 +721,8 @@ function addFoodToBowl(item) {
   food.textContent = item.emoji || "⭐";
 
   bowlItems.appendChild(food);
+
+  playEffect("food");
 }
 
 function clearBowl() {
@@ -713,10 +787,39 @@ function shuffle(list) {
   return [...list].sort(() => Math.random() - 0.5);
 }
 
-function speak(text) {
-  lastSpokenText = text;
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .replaceAll("å", "a")
+    .replaceAll("ä", "a")
+    .replaceAll("ö", "o")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
 
-  if (!settings.voiceEnabled) return;
+async function speak(text, voiceKey = "") {
+  lastSpokenText = text;
+  lastVoiceKey = voiceKey;
+
+  if (settings.voiceMode === "off") return;
+
+  stopBrowserVoice();
+
+  if (settings.voiceMode === "custom") {
+    const customVoicePlayed = await playCustomVoice(voiceKey);
+
+    if (customVoicePlayed) {
+      return;
+    }
+
+    speakWithBrowserVoice(text);
+    return;
+  }
+
+  speakWithBrowserVoice(text);
+}
+
+function speakWithBrowserVoice(text) {
   if (!("speechSynthesis" in window)) return;
 
   window.speechSynthesis.cancel();
@@ -739,13 +842,67 @@ function speak(text) {
   window.speechSynthesis.speak(utterance);
 }
 
+function stopBrowserVoice() {
+  if (!("speechSynthesis" in window)) return;
+
+  window.speechSynthesis.cancel();
+}
+
 function repeatSpeech() {
   if (!lastSpokenText) {
-    speak(speech.textContent);
+    speak(speech.textContent, "");
     return;
   }
 
-  speak(lastSpokenText);
+  speak(lastSpokenText, lastVoiceKey);
+}
+
+async function playCustomVoice(voiceKey) {
+  if (!voiceKey) return false;
+
+  const source = `./audio/voice/${voiceKey}.mp3`;
+
+  return playAudioFile(source, 1);
+}
+
+function playEffect(effectKey) {
+  if (!settings.effectEnabled) return Promise.resolve(false);
+
+  const source = EFFECT_PATHS[effectKey];
+
+  if (!source) return Promise.resolve(false);
+
+  return playAudioFile(source, 0.9);
+}
+
+function playAudioFile(source, volume = 1) {
+  return new Promise((resolve) => {
+    const audio = new Audio(source);
+    let settled = false;
+
+    audio.preload = "auto";
+    audio.volume = volume;
+
+    const finish = (result) => {
+      if (settled) return;
+
+      settled = true;
+      resolve(result);
+    };
+
+    audio.addEventListener("ended", () => finish(true), { once: true });
+    audio.addEventListener("error", () => finish(false), { once: true });
+
+    audio.play().catch(() => {
+      finish(false);
+    });
+  });
+}
+
+function testAudio() {
+  playEffect("correct");
+  speak("Mums! Tack!", "correct_mums");
+  showSettingsMessage("Testar ljud!");
 }
 
 function showModeIntro() {
@@ -776,12 +933,14 @@ function showModeIntro() {
 }
 
 function openSettings() {
+  playEffect("click");
   settingsPanel.classList.remove("hidden");
   settingsMessage.textContent = "";
   applySettingsToUI();
 }
 
 function closeSettings() {
+  playEffect("click");
   settingsPanel.classList.add("hidden");
   updateTitle();
   showModeIntro();
@@ -823,7 +982,8 @@ function resetSettings() {
 function applySettingsToUI() {
   childNameInput.value = settings.childName || "";
   monsterNameInput.value = settings.monsterName || "Mumsis";
-  voiceSelect.value = settings.voiceEnabled ? "on" : "off";
+  voiceSelect.value = settings.voiceMode || "custom";
+  effectSelect.value = settings.effectEnabled ? "on" : "off";
   optionCountSelect.value = String(settings.optionCount);
   roundCountSelect.value = String(settings.maxRounds);
 
@@ -857,28 +1017,49 @@ function showSettingsMessage(message) {
 
 function loadSettings() {
   try {
-    const savedV3 = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const savedV4 = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    if (savedV3) {
-      return {
+    if (savedV4) {
+      return normalizeSettings({
         ...DEFAULT_SETTINGS,
-        ...savedV3
-      };
+        ...savedV4
+      });
     }
 
-    const savedV2 = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+    for (const oldKey of OLD_STORAGE_KEYS) {
+      const oldSettings = JSON.parse(localStorage.getItem(oldKey));
 
-    if (savedV2) {
-      return {
-        ...DEFAULT_SETTINGS,
-        ...savedV2
-      };
+      if (oldSettings) {
+        return normalizeSettings({
+          ...DEFAULT_SETTINGS,
+          ...oldSettings
+        });
+      }
     }
 
     return { ...DEFAULT_SETTINGS };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
+}
+
+function normalizeSettings(rawSettings) {
+  const normalized = {
+    ...DEFAULT_SETTINGS,
+    ...rawSettings
+  };
+
+  if (!normalized.voiceMode) {
+    normalized.voiceMode = normalized.voiceEnabled === false ? "off" : "custom";
+  }
+
+  normalized.voiceEnabled = normalized.voiceMode !== "off";
+
+  if (typeof normalized.effectEnabled !== "boolean") {
+    normalized.effectEnabled = true;
+  }
+
+  return normalized;
 }
 
 function saveSettings() {
