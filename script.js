@@ -1,12 +1,17 @@
-const STORAGE_KEY = "mata-monstret-settings-v2";
+const STORAGE_KEY = "mata-monstret-settings-v3";
+const OLD_STORAGE_KEY = "mata-monstret-settings-v2";
 
 const DEFAULT_SETTINGS = {
   selectedMode: "mixed",
   voiceEnabled: true,
   optionCount: 3,
   maxRounds: 5,
+  childName: "",
+  monsterName: "Mumsis",
   enabledCategories: ["mat", "djur", "leksak", "fordon", "klader"]
 };
+
+const DANCE_AFTER_CORRECT = 3;
 
 const CATEGORY_INFO = {
   mat: {
@@ -213,6 +218,9 @@ const items = [
   }
 ];
 
+const body = document.body;
+const gameRoot = document.getElementById("gameRoot");
+const gameTitle = document.getElementById("gameTitle");
 const monster = document.getElementById("monster");
 const speech = document.getElementById("speech");
 const instruction = document.getElementById("instruction");
@@ -223,10 +231,13 @@ const progress = document.getElementById("progress");
 const modeSelector = document.getElementById("modeSelector");
 const modeButtons = document.querySelectorAll(".mode-button");
 const appStatus = document.getElementById("appStatus");
+const bowlItems = document.getElementById("bowlItems");
 
 const adultButton = document.getElementById("adultButton");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettingsButton = document.getElementById("closeSettingsButton");
+const childNameInput = document.getElementById("childNameInput");
+const monsterNameInput = document.getElementById("monsterNameInput");
 const voiceSelect = document.getElementById("voiceSelect");
 const optionCountSelect = document.getElementById("optionCountSelect");
 const roundCountSelect = document.getElementById("roundCountSelect");
@@ -243,12 +254,15 @@ let lastAnswerId = null;
 let lastSpokenText = "";
 let buttonsLocked = false;
 let deferredInstallPrompt = null;
+let dancePauseUsed = false;
 
 applySettingsToUI();
+updateTitle();
 bindEvents();
 registerServiceWorker();
 setupInstallPrompt();
 updateOnlineStatus();
+showModeIntro();
 
 function bindEvents() {
   startButton.addEventListener("click", startGame);
@@ -258,6 +272,20 @@ function bindEvents() {
   closeSettingsButton.addEventListener("click", closeSettings);
 
   resetSettingsButton.addEventListener("click", resetSettings);
+
+  childNameInput.addEventListener("input", () => {
+    settings.childName = childNameInput.value.trim();
+    saveSettings();
+    updateTitle();
+    showSettingsMessage("Sparat!");
+  });
+
+  monsterNameInput.addEventListener("input", () => {
+    settings.monsterName = monsterNameInput.value.trim();
+    saveSettings();
+    updateTitle();
+    showSettingsMessage("Sparat!");
+  });
 
   voiceSelect.addEventListener("change", () => {
     settings.voiceEnabled = voiceSelect.value === "on";
@@ -308,15 +336,21 @@ function startGame() {
     return;
   }
 
+  body.classList.add("is-playing");
+
   currentRound = 0;
   correctAnswers = 0;
   lastAnswerId = null;
   buttonsLocked = false;
+  dancePauseUsed = false;
+
+  clearBowl();
 
   startButton.classList.add("hidden");
   modeSelector.classList.add("hidden");
   repeatButton.classList.remove("hidden");
 
+  setMonsterMood("hungry");
   nextRound();
 }
 
@@ -329,8 +363,7 @@ function nextRound() {
   currentRound += 1;
   buttonsLocked = false;
 
-  monster.textContent = "😋";
-  monster.className = "monster";
+  setMonsterMood("hungry");
 
   currentQuestion = createQuestion();
 
@@ -437,6 +470,7 @@ function createOptions(answer, wrongOptions) {
 
 function renderChoices(options) {
   choices.innerHTML = "";
+  choices.className = `choices choices-${options.length}`;
 
   options.forEach((item) => {
     const button = document.createElement("button");
@@ -460,26 +494,41 @@ function handleChoice(item, button) {
   buttonsLocked = true;
 
   if (currentQuestion.isCorrect(item)) {
-    handleCorrectChoice(button);
+    handleCorrectChoice(item, button);
   } else {
     handleWrongChoice(item, button);
   }
 }
 
-function handleCorrectChoice(button) {
+function handleCorrectChoice(item, button) {
   correctAnswers += 1;
 
   setChoiceButtonsDisabled(true);
+  addFoodToBowl(item);
 
   button.classList.add("correct");
 
-  monster.textContent = "🥳";
-  monster.className = "monster happy";
+  setMonsterMood("chewing");
 
   const feedback = getCorrectFeedback();
 
   speech.textContent = feedback;
   speak(feedback);
+
+  const shouldDance =
+    !dancePauseUsed &&
+    correctAnswers >= DANCE_AFTER_CORRECT &&
+    currentRound < settings.maxRounds;
+
+  if (shouldDance) {
+    dancePauseUsed = true;
+
+    setTimeout(() => {
+      startDancePause();
+    }, 900);
+
+    return;
+  }
 
   setTimeout(() => {
     nextRound();
@@ -487,11 +536,13 @@ function handleCorrectChoice(button) {
 }
 
 function getCorrectFeedback() {
+  const monsterName = getMonsterName();
+
   const feedbacks = [
     "Mums! Tack!",
     "Jättegott!",
     "Bra matat!",
-    "Mumsis blir glad!",
+    `${monsterName} blir glad!`,
     "Tack för maten!"
   ];
 
@@ -503,8 +554,7 @@ function handleWrongChoice(item, button) {
 
   button.classList.add("wrong");
 
-  monster.textContent = "🤔";
-  monster.className = "monster thinking";
+  setMonsterMood("thinking");
 
   const feedback = `Nästan! Det där var ${item.name}. Försök igen.`;
 
@@ -514,8 +564,7 @@ function handleWrongChoice(item, button) {
   setTimeout(() => {
     button.classList.remove("wrong");
 
-    monster.textContent = "😋";
-    monster.className = "monster";
+    setMonsterMood("hungry");
 
     speech.textContent = currentQuestion.prompt;
 
@@ -524,22 +573,49 @@ function handleWrongChoice(item, button) {
   }, 1600);
 }
 
+function startDancePause() {
+  const monsterName = getMonsterName();
+
+  choices.innerHTML = "";
+  choices.className = "choices";
+
+  instruction.textContent = "Danspaus!";
+  speech.textContent = `${monsterName} dansar!`;
+
+  setMonsterMood("dancing");
+  speak(`${monsterName} dansar!`);
+
+  setTimeout(() => {
+    nextRound();
+  }, 2200);
+}
+
 function endGame() {
   choices.innerHTML = "";
+  choices.className = "choices";
   progress.innerHTML = "";
 
-  monster.textContent = "🥰";
-  monster.className = "monster dancing";
+  body.classList.remove("is-playing");
+
+  const childName = getChildName();
+  const monsterName = getMonsterName();
+
+  setMonsterMood("full");
 
   instruction.textContent = "Bra jobbat!";
-  speech.textContent = `Nu är Mumsis mätt. Du hjälpte ${correctAnswers} gånger!`;
+
+  if (childName) {
+    speech.textContent = `Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`;
+    speak(`Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`);
+  } else {
+    speech.textContent = `Nu är ${monsterName} mätt. Tack för maten!`;
+    speak(`Nu är ${monsterName} mätt. Tack för maten!`);
+  }
 
   startButton.textContent = "Spela igen";
   startButton.classList.remove("hidden");
   modeSelector.classList.remove("hidden");
   repeatButton.classList.remove("hidden");
-
-  speak("Nu är Mumsis mätt. Tack för maten!");
 }
 
 function setChoiceButtonsDisabled(disabled) {
@@ -564,6 +640,24 @@ function renderProgress() {
 
     progress.appendChild(dot);
   }
+}
+
+function addFoodToBowl(item) {
+  const food = document.createElement("span");
+
+  food.className = "bowl-food";
+  food.textContent = item.emoji || "⭐";
+
+  bowlItems.appendChild(food);
+}
+
+function clearBowl() {
+  bowlItems.innerHTML = "";
+}
+
+function setMonsterMood(mood) {
+  monster.className = `monster monster-${mood}`;
+  monster.setAttribute("aria-label", `${getMonsterName()} är ${mood}`);
 }
 
 function getRandomAnswer() {
@@ -601,6 +695,14 @@ function getAvailableCategoryKeys() {
 
     return hasCorrectItem && hasWrongItem;
   });
+}
+
+function getChildName() {
+  return (settings.childName || "").trim();
+}
+
+function getMonsterName() {
+  return (settings.monsterName || "Mumsis").trim();
 }
 
 function getRandomItem(list) {
@@ -647,24 +749,29 @@ function repeatSpeech() {
 }
 
 function showModeIntro() {
+  const monsterName = getMonsterName();
+  const childName = getChildName();
+
   if (settings.selectedMode === "name") {
     instruction.textContent = "Ordläge valt!";
-    speech.textContent = "Jag säger vad jag vill ha.";
+    speech.textContent = childName
+      ? `${childName}, kan du mata ${monsterName}?`
+      : `Kan du mata ${monsterName}?`;
   }
 
   if (settings.selectedMode === "color") {
     instruction.textContent = "Färgläge valt!";
-    speech.textContent = "Jag säger vilken färg jag vill ha.";
+    speech.textContent = `${monsterName} vill öva på färger.`;
   }
 
   if (settings.selectedMode === "category") {
     instruction.textContent = "Kategoriläge valt!";
-    speech.textContent = "Jag säger vilken sorts sak jag vill ha.";
+    speech.textContent = `${monsterName} vill sortera saker.`;
   }
 
   if (settings.selectedMode === "mixed") {
     instruction.textContent = "Blandat läge valt!";
-    speech.textContent = "Jag blandar ord, färger och kategorier.";
+    speech.textContent = `${monsterName} blandar ord, färger och kategorier.`;
   }
 }
 
@@ -676,6 +783,8 @@ function openSettings() {
 
 function closeSettings() {
   settingsPanel.classList.add("hidden");
+  updateTitle();
+  showModeIntro();
 }
 
 function updateEnabledCategoriesFromUI() {
@@ -701,6 +810,9 @@ function resetSettings() {
   settings = { ...DEFAULT_SETTINGS };
   saveSettings();
   applySettingsToUI();
+  updateTitle();
+  clearBowl();
+  setMonsterMood("hungry");
 
   instruction.textContent = "Inställningar återställda!";
   speech.textContent = "Nu är allt som från början.";
@@ -709,6 +821,8 @@ function resetSettings() {
 }
 
 function applySettingsToUI() {
+  childNameInput.value = settings.childName || "";
+  monsterNameInput.value = settings.monsterName || "Mumsis";
   voiceSelect.value = settings.voiceEnabled ? "on" : "off";
   optionCountSelect.value = String(settings.optionCount);
   roundCountSelect.value = String(settings.maxRounds);
@@ -727,6 +841,10 @@ function updateModeButtons() {
   });
 }
 
+function updateTitle() {
+  gameTitle.textContent = `Mata ${getMonsterName()}`;
+}
+
 function showSettingsMessage(message) {
   settingsMessage.textContent = message;
 
@@ -739,12 +857,25 @@ function showSettingsMessage(message) {
 
 function loadSettings() {
   try {
-    const savedSettings = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const savedV3 = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    return {
-      ...DEFAULT_SETTINGS,
-      ...savedSettings
-    };
+    if (savedV3) {
+      return {
+        ...DEFAULT_SETTINGS,
+        ...savedV3
+      };
+    }
+
+    const savedV2 = JSON.parse(localStorage.getItem(OLD_STORAGE_KEY));
+
+    if (savedV2) {
+      return {
+        ...DEFAULT_SETTINGS,
+        ...savedV2
+      };
+    }
+
+    return { ...DEFAULT_SETTINGS };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
