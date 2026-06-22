@@ -16,11 +16,11 @@
 </head>
 
 <body>
-  <main class="game">
+  <main id="gameRoot" class="game">
     <header class="top">
       <div class="top-row">
         <div class="app-title">
-          <h1>Mata monstret</h1>
+          <h1 id="gameTitle">Mata monstret</h1>
           <p id="appStatus" class="app-status">Redo att leka</p>
         </div>
 
@@ -56,9 +56,43 @@
       </button>
     </section>
 
-    <section class="monster-area" aria-live="polite">
-      <div id="monster" class="monster">😋</div>
+    <section class="play-zone" aria-live="polite">
+      <div id="monster" class="monster monster-hungry" aria-label="Hungrigt monster">
+        <div class="monster-horn monster-horn-left"></div>
+        <div class="monster-horn monster-horn-right"></div>
+
+        <div class="monster-arm monster-arm-left"></div>
+        <div class="monster-arm monster-arm-right"></div>
+
+        <div class="monster-body">
+          <div class="monster-eye monster-eye-left">
+            <span></span>
+          </div>
+
+          <div class="monster-eye monster-eye-right">
+            <span></span>
+          </div>
+
+          <div class="monster-cheek monster-cheek-left"></div>
+          <div class="monster-cheek monster-cheek-right"></div>
+
+          <div class="monster-mouth">
+            <div class="monster-tongue"></div>
+          </div>
+        </div>
+
+        <div class="monster-foot monster-foot-left"></div>
+        <div class="monster-foot monster-foot-right"></div>
+      </div>
+
       <div id="speech" class="speech">Jag är hungrig!</div>
+
+      <div class="bowl-area" aria-label="Matskål">
+        <div class="bowl">
+          <div id="bowlItems" class="bowl-items"></div>
+          <div class="bowl-front">🥣</div>
+        </div>
+      </div>
 
       <button id="repeatButton" class="repeat-button hidden" type="button">
         🔊 Hör igen
@@ -87,6 +121,16 @@
       <p class="settings-help">
         Här kan du anpassa spelet. Inställningarna sparas på den här mobilen.
       </p>
+
+      <label class="setting-row">
+        <span>Barnets namn</span>
+        <input id="childNameInput" type="text" maxlength="20" placeholder="t.ex. Alma" />
+      </label>
+
+      <label class="setting-row">
+        <span>Monstrets namn</span>
+        <input id="monsterNameInput" type="text" maxlength="20" placeholder="Mumsis" />
+      </label>
 
       <label class="setting-row">
         <span>Röst</span>
