@@ -135,6 +135,15 @@
       <label class="setting-row">
         <span>Röst</span>
         <select id="voiceSelect">
+          <option value="custom">Egen röst + fallback</option>
+          <option value="browser">Webbröst</option>
+          <option value="off">Av</option>
+        </select>
+      </label>
+
+      <label class="setting-row">
+        <span>Effektljud</span>
+        <select id="effectSelect">
           <option value="on">På</option>
           <option value="off">Av</option>
         </select>
@@ -188,6 +197,10 @@
       </div>
 
       <div class="settings-actions">
+        <button id="testAudioButton" class="secondary-button" type="button">
+          Testa ljud
+        </button>
+
         <button id="installButton" class="secondary-button hidden" type="button">
           Installera appen
         </button>
