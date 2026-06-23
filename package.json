@@ -1,0 +1,10 @@
+{
+  "type": "module",
+  "scripts": {
+    "voice:list": "node scripts/voice-lines.mjs list",
+    "voice:missing": "node scripts/voice-lines.mjs missing",
+    "voice:csv": "node scripts/voice-lines.mjs csv",
+    "voice:json": "node scripts/voice-lines.mjs json",
+    "voice:tts-input": "node scripts/voice-lines.mjs tts-input"
+  }
+}

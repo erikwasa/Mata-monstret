@@ -1,4 +1,4 @@
-const CACHE_NAME = "mata-monstret-cache-v6";
+const CACHE_NAME = "mata-monstret-cache-v7";
 
 const ASSETS_TO_CACHE = [
   "./",
@@ -11,34 +11,19 @@ const ASSETS_TO_CACHE = [
   "./src/questions.js",
   "./src/render.js",
   "./src/settings.js",
+  "./src/voice-lines.js",
   "./manifest.json",
   "./icons/icon.svg"
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(ASSETS_TO_CACHE))
-      .then(() => self.skipWaiting())
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS_TO_CACHE)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) =>
-        Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              return caches.delete(cacheName);
-            }
-
-            return null;
-          })
-        )
-      )
+    caches.keys()
+      .then((cacheNames) => Promise.all(cacheNames.map((cacheName) => cacheName === CACHE_NAME ? null : caches.delete(cacheName))))
       .then(() => self.clients.claim())
   );
 });
@@ -48,31 +33,17 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
+      if (cachedResponse) return cachedResponse;
 
       return fetch(event.request)
         .then((networkResponse) => {
-          const isSameOrigin = event.request.url.startsWith(self.location.origin);
-
-          if (isSameOrigin && networkResponse.ok) {
-            const responseClone = networkResponse.clone();
-
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseClone);
-            });
+          if (event.request.url.startsWith(self.location.origin) && networkResponse.ok) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse.clone()));
           }
 
           return networkResponse;
         })
-        .catch(() => {
-          if (event.request.mode === "navigate") {
-            return caches.match("./index.html");
-          }
-
-          return null;
-        });
+        .catch(() => event.request.mode === "navigate" ? caches.match("./index.html") : null);
     })
   );
 });
