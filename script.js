@@ -1,356 +1,24 @@
-const STORAGE_KEY = "mata-monstret-settings-v5";
-const OLD_STORAGE_KEYS = [
-  "mata-monstret-settings-v4",
-  "mata-monstret-settings-v3",
-  "mata-monstret-settings-v2"
-];
-
-const DEFAULT_SETTINGS = {
-  selectedMode: "mixed",
-  voiceMode: "custom",
-  voiceEnabled: true,
-  effectEnabled: true,
-  optionCount: 3,
-  maxRounds: 5,
-  childName: "",
-  monsterName: "Mumsis",
-  enabledCategories: ["mat", "djur", "leksak", "fordon", "klader"]
-};
-
-const DANCE_AFTER_CORRECT = 3;
-
-const EFFECT_PATHS = {
-  correct: "./audio/effects/correct.mp3",
-  wrong: "./audio/effects/wrong.mp3",
-  food: "./audio/effects/food.mp3",
-  dance: "./audio/effects/dance.mp3",
-  end: "./audio/effects/end.mp3",
-  click: "./audio/effects/click.mp3"
-};
-
-const CATEGORY_INFO = {
-  mat: {
-    label: "mat",
-    prompt: "Ge mig maten!",
-    voiceKey: "give_category_food"
-  },
-  djur: {
-    label: "djur",
-    prompt: "Ge mig djuret!",
-    voiceKey: "give_category_animal"
-  },
-  leksak: {
-    label: "leksak",
-    prompt: "Ge mig leksaken!",
-    voiceKey: "give_category_toy"
-  },
-  fordon: {
-    label: "fordon",
-    prompt: "Ge mig fordonet!",
-    voiceKey: "give_category_vehicle"
-  },
-  klader: {
-    label: "kläder",
-    prompt: "Ge mig klädesplagget!",
-    voiceKey: "give_category_clothes"
-  }
-};
-
-const COLOR_INFO = {
-  yellow: {
-    label: "gult",
-    voiceKey: "give_color_yellow"
-  },
-  red: {
-    label: "rött",
-    voiceKey: "give_color_red"
-  },
-  orange: {
-    label: "orange",
-    voiceKey: "give_color_orange"
-  },
-  green: {
-    label: "grönt",
-    voiceKey: "give_color_green"
-  },
-  blue: {
-    label: "blått",
-    voiceKey: "give_color_blue"
-  },
-  brown: {
-    label: "brunt",
-    voiceKey: "give_color_brown"
-  },
-  white: {
-    label: "vitt",
-    voiceKey: "give_color_white"
-  },
-  pink: {
-    label: "rosa",
-    voiceKey: "give_color_pink"
-  },
-  black: {
-    label: "svart",
-    voiceKey: "give_color_black"
-  }
-};
-
-const items = [
-  {
-    id: "banana",
-    name: "banan",
-    emoji: "🍌",
-    category: "mat",
-    color: "yellow",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "apple",
-    name: "äpple",
-    emoji: "🍎",
-    category: "mat",
-    color: "red",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "carrot",
-    name: "morot",
-    emoji: "🥕",
-    category: "mat",
-    color: "orange",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "cucumber",
-    name: "gurka",
-    emoji: "🥒",
-    category: "mat",
-    color: "green",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "lemon",
-    name: "citron",
-    emoji: "🍋",
-    category: "mat",
-    color: "yellow",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "strawberry",
-    name: "jordgubbe",
-    emoji: "🍓",
-    category: "mat",
-    color: "red",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "cheese",
-    name: "ost",
-    emoji: "🧀",
-    category: "mat",
-    color: "yellow",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "cookie",
-    name: "kaka",
-    emoji: "🍪",
-    category: "mat",
-    color: "brown",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-
-  {
-    id: "dog",
-    name: "hund",
-    emoji: "🐶",
-    category: "djur",
-    color: "brown",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "cat",
-    name: "katt",
-    emoji: "🐱",
-    category: "djur",
-    color: "orange",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "frog",
-    name: "groda",
-    emoji: "🐸",
-    category: "djur",
-    color: "green",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "cow",
-    name: "ko",
-    emoji: "🐮",
-    category: "djur",
-    color: "white",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "pig",
-    name: "gris",
-    emoji: "🐷",
-    category: "djur",
-    color: "pink",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-
-  {
-    id: "teddy",
-    name: "nalle",
-    emoji: "🧸",
-    category: "leksak",
-    color: "brown",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "ball",
-    name: "boll",
-    emoji: "⚽",
-    category: "leksak",
-    color: "white",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "blocks",
-    name: "klossar",
-    emoji: "🧱",
-    category: "leksak",
-    color: "red",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "kite",
-    name: "drake",
-    emoji: "🪁",
-    category: "leksak",
-    color: "blue",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-
-  {
-    id: "car",
-    name: "bil",
-    emoji: "🚙",
-    category: "fordon",
-    color: "blue",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "bus",
-    name: "buss",
-    emoji: "🚌",
-    category: "fordon",
-    color: "yellow",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "train",
-    name: "tåg",
-    emoji: "🚂",
-    category: "fordon",
-    color: "black",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "tractor",
-    name: "traktor",
-    emoji: "🚜",
-    category: "fordon",
-    color: "green",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-
-  {
-    id: "shoe",
-    name: "sko",
-    emoji: "👟",
-    category: "klader",
-    color: "blue",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "hat",
-    name: "mössa",
-    emoji: "🧢",
-    category: "klader",
-    color: "blue",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  },
-  {
-    id: "sock",
-    name: "strumpa",
-    emoji: "🧦",
-    category: "klader",
-    color: "white",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: false
-  },
-  {
-    id: "scarf",
-    name: "halsduk",
-    emoji: "🧣",
-    category: "klader",
-    color: "red",
-    useInNameMode: true,
-    useInCategoryMode: true,
-    useInColorMode: true
-  }
-];
+import {
+  CATEGORY_INFO,
+  COLOR_INFO,
+  DANCE_AFTER_CORRECT,
+  items
+} from "./src/data.js";
+import {
+  DEFAULT_SETTINGS,
+  getChildName as getSettingsChildName,
+  getEnabledCategories as getSettingsEnabledCategories,
+  getMonsterName as getSettingsMonsterName,
+  loadSettings,
+  saveSettings
+} from "./src/settings.js";
+import {
+  playEffect,
+  repeatSpeech,
+  setupBrowserVoice,
+  speak,
+  testAudio
+} from "./src/audio.js";
 
 const body = document.body;
 const gameTitle = document.getElementById("gameTitle");
@@ -386,8 +54,6 @@ let currentQuestion = null;
 let currentRound = 0;
 let correctAnswers = 0;
 let lastAnswerId = null;
-let lastSpokenText = "";
-let lastVoiceKey = "";
 let buttonsLocked = false;
 let deferredInstallPrompt = null;
 let dancePauseUsed = false;
@@ -402,24 +68,24 @@ showModeIntro();
 
 function bindEvents() {
   startButton.addEventListener("click", startGame);
-  repeatButton.addEventListener("click", repeatSpeech);
+  repeatButton.addEventListener("click", () => repeatSpeech(speech.textContent, settings));
 
   adultButton.addEventListener("click", openSettings);
   closeSettingsButton.addEventListener("click", closeSettings);
 
   resetSettingsButton.addEventListener("click", resetSettings);
-  testAudioButton.addEventListener("click", testAudio);
+  testAudioButton.addEventListener("click", () => testAudio(settings, showSettingsMessage));
 
   childNameInput.addEventListener("input", () => {
     settings.childName = childNameInput.value.trim();
-    saveSettings();
+    saveSettings(settings);
     updateTitle();
     showSettingsMessage("Sparat!");
   });
 
   monsterNameInput.addEventListener("input", () => {
     settings.monsterName = monsterNameInput.value.trim();
-    saveSettings();
+    saveSettings(settings);
     updateTitle();
     showSettingsMessage("Sparat!");
   });
@@ -427,25 +93,25 @@ function bindEvents() {
   voiceSelect.addEventListener("change", () => {
     settings.voiceMode = voiceSelect.value;
     settings.voiceEnabled = settings.voiceMode !== "off";
-    saveSettings();
+    saveSettings(settings);
     showSettingsMessage("Sparat!");
   });
 
   effectSelect.addEventListener("change", () => {
     settings.effectEnabled = effectSelect.value === "on";
-    saveSettings();
+    saveSettings(settings);
     showSettingsMessage("Sparat!");
   });
 
   optionCountSelect.addEventListener("change", () => {
     settings.optionCount = Number(optionCountSelect.value);
-    saveSettings();
+    saveSettings(settings);
     showSettingsMessage("Sparat!");
   });
 
   roundCountSelect.addEventListener("change", () => {
     settings.maxRounds = Number(roundCountSelect.value);
-    saveSettings();
+    saveSettings(settings);
     showSettingsMessage("Sparat!");
   });
 
@@ -455,10 +121,10 @@ function bindEvents() {
 
   modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
-      playEffect("click");
+      playEffect("click", settings);
 
       settings.selectedMode = button.dataset.mode;
-      saveSettings();
+      saveSettings(settings);
       updateModeButtons();
       showModeIntro();
     });
@@ -467,20 +133,18 @@ function bindEvents() {
   window.addEventListener("online", updateOnlineStatus);
   window.addEventListener("offline", updateOnlineStatus);
 
-  if ("speechSynthesis" in window) {
-    window.speechSynthesis.onvoiceschanged = () => {};
-  }
+  setupBrowserVoice();
 }
 
 function startGame() {
-  playEffect("click");
+  playEffect("click", settings);
 
   const availableQuestionTypes = getAvailableQuestionTypes();
 
   if (availableQuestionTypes.length === 0) {
     speech.textContent = "Välj fler saker i vuxenläget.";
     instruction.textContent = "För få saker att leka med";
-    speak("Välj fler saker i vuxenläget.", "settings_need_more_items");
+    speak("Välj fler saker i vuxenläget.", "settings_need_more_items", settings);
     return;
   }
 
@@ -492,7 +156,7 @@ function startGame() {
 
     speech.textContent = message;
     instruction.textContent = "För få tydliga val";
-    speak(message, "settings_need_more_items");
+    speak(message, "settings_need_more_items", settings);
     return;
   }
 
@@ -544,7 +208,7 @@ function nextRound() {
 
   renderProgress();
   renderChoices(currentQuestion.options);
-  speak(currentQuestion.prompt, currentQuestion.voiceKey);
+  speak(currentQuestion.prompt, currentQuestion.voiceKey, settings);
 }
 
 function createQuestion() {
@@ -716,12 +380,12 @@ function handleCorrectChoice(item, button) {
   button.classList.add("correct");
 
   setMonsterMood("chewing");
-  playEffect("correct");
+  playEffect("correct", settings);
 
   const feedback = getCorrectFeedback();
 
   speech.textContent = feedback.text;
-  speak(feedback.text, feedback.voiceKey);
+  speak(feedback.text, feedback.voiceKey, settings);
 
   const shouldDance =
     !dancePauseUsed &&
@@ -778,12 +442,12 @@ function handleWrongChoice(item, button) {
   button.classList.add("wrong");
 
   setMonsterMood("thinking");
-  playEffect("wrong");
+  playEffect("wrong", settings);
 
   const feedback = `Nästan! Det där var ${item.name}. Försök igen.`;
 
   speech.textContent = feedback;
-  speak(feedback, "try_again");
+  speak(feedback, "try_again", settings);
 
   setTimeout(() => {
     button.classList.remove("wrong");
@@ -807,8 +471,8 @@ function startDancePause() {
   speech.textContent = `${monsterName} dansar!`;
 
   setMonsterMood("dancing");
-  playEffect("dance");
-  speak(`${monsterName} dansar!`, "dance");
+  playEffect("dance", settings);
+  speak(`${monsterName} dansar!`, "dance", settings);
 
   setTimeout(() => {
     nextRound();
@@ -826,16 +490,16 @@ function endGame() {
   const monsterName = getMonsterName();
 
   setMonsterMood("full");
-  playEffect("end");
+  playEffect("end", settings);
 
   instruction.textContent = "Bra jobbat!";
 
   if (childName) {
     speech.textContent = `Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`;
-    speak(`Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`, "end");
+    speak(`Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`, "end", settings);
   } else {
     speech.textContent = `Nu är ${monsterName} mätt. Tack för maten!`;
-    speak(`Nu är ${monsterName} mätt. Tack för maten!`, "end");
+    speak(`Nu är ${monsterName} mätt. Tack för maten!`, "end", settings);
   }
 
   startButton.textContent = "Spela igen";
@@ -876,7 +540,7 @@ function addFoodToBowl(item) {
 
   bowlItems.appendChild(food);
 
-  playEffect("food");
+  playEffect("food", settings);
 }
 
 function clearBowl() {
@@ -920,11 +584,7 @@ function getActiveItems() {
 }
 
 function getEnabledCategories() {
-  if (!Array.isArray(settings.enabledCategories) || settings.enabledCategories.length === 0) {
-    return DEFAULT_SETTINGS.enabledCategories;
-  }
-
-  return settings.enabledCategories;
+  return getSettingsEnabledCategories(settings);
 }
 
 function getAvailableCategoryKeys() {
@@ -940,11 +600,11 @@ function getAvailableCategoryKeys() {
 }
 
 function getChildName() {
-  return (settings.childName || "").trim();
+  return getSettingsChildName(settings);
 }
 
 function getMonsterName() {
-  return (settings.monsterName || "Mumsis").trim();
+  return getSettingsMonsterName(settings);
 }
 
 function getRandomItem(list) {
@@ -953,114 +613,6 @@ function getRandomItem(list) {
 
 function shuffle(list) {
   return [...list].sort(() => Math.random() - 0.5);
-}
-
-async function speak(text, voiceKey = "") {
-  lastSpokenText = text;
-  lastVoiceKey = voiceKey;
-
-  if (settings.voiceMode === "off") return;
-
-  stopBrowserVoice();
-
-  if (settings.voiceMode === "custom") {
-    const customVoicePlayed = await playCustomVoice(voiceKey);
-
-    if (customVoicePlayed) {
-      return;
-    }
-
-    speakWithBrowserVoice(text);
-    return;
-  }
-
-  speakWithBrowserVoice(text);
-}
-
-function speakWithBrowserVoice(text) {
-  if (!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-
-  const utterance = new SpeechSynthesisUtterance(text);
-
-  utterance.lang = "sv-SE";
-  utterance.rate = 0.85;
-  utterance.pitch = 1.15;
-
-  const voices = window.speechSynthesis.getVoices();
-  const swedishVoice = voices.find((voice) =>
-    voice.lang.toLowerCase().startsWith("sv")
-  );
-
-  if (swedishVoice) {
-    utterance.voice = swedishVoice;
-  }
-
-  window.speechSynthesis.speak(utterance);
-}
-
-function stopBrowserVoice() {
-  if (!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-}
-
-function repeatSpeech() {
-  if (!lastSpokenText) {
-    speak(speech.textContent, "");
-    return;
-  }
-
-  speak(lastSpokenText, lastVoiceKey);
-}
-
-async function playCustomVoice(voiceKey) {
-  if (!voiceKey) return false;
-
-  const source = `./audio/voice/${voiceKey}.mp3`;
-
-  return playAudioFile(source, 1);
-}
-
-function playEffect(effectKey) {
-  if (!settings.effectEnabled) return Promise.resolve(false);
-
-  const source = EFFECT_PATHS[effectKey];
-
-  if (!source) return Promise.resolve(false);
-
-  return playAudioFile(source, 0.9);
-}
-
-function playAudioFile(source, volume = 1) {
-  return new Promise((resolve) => {
-    const audio = new Audio(source);
-    let settled = false;
-
-    audio.preload = "auto";
-    audio.volume = volume;
-
-    const finish = (result) => {
-      if (settled) return;
-
-      settled = true;
-      resolve(result);
-    };
-
-    audio.addEventListener("ended", () => finish(true), { once: true });
-    audio.addEventListener("error", () => finish(false), { once: true });
-
-    audio.play().catch(() => {
-      finish(false);
-    });
-  });
-}
-
-function testAudio() {
-  playEffect("correct");
-  speak("Mums! Tack!", "correct_mums");
-  showSettingsMessage("Testar ljud!");
 }
 
 function showModeIntro() {
@@ -1091,14 +643,14 @@ function showModeIntro() {
 }
 
 function openSettings() {
-  playEffect("click");
+  playEffect("click", settings);
   settingsPanel.classList.remove("hidden");
   settingsMessage.textContent = "";
   applySettingsToUI();
 }
 
 function closeSettings() {
-  playEffect("click");
+  playEffect("click", settings);
   settingsPanel.classList.add("hidden");
   updateTitle();
   showModeIntro();
@@ -1120,12 +672,12 @@ function updateEnabledCategoriesFromUI() {
     showSettingsMessage("Sparat!");
   }
 
-  saveSettings();
+  saveSettings(settings);
 }
 
 function resetSettings() {
   settings = { ...DEFAULT_SETTINGS };
-  saveSettings();
+  saveSettings(settings);
   applySettingsToUI();
   updateTitle();
   clearBowl();
@@ -1171,61 +723,6 @@ function showSettingsMessage(message) {
       settingsMessage.textContent = "";
     }
   }, 1800);
-}
-
-function loadSettings() {
-  try {
-    const savedV5 = JSON.parse(localStorage.getItem(STORAGE_KEY));
-
-    if (savedV5) {
-      return normalizeSettings({
-        ...DEFAULT_SETTINGS,
-        ...savedV5
-      });
-    }
-
-    for (const oldKey of OLD_STORAGE_KEYS) {
-      const oldSettings = JSON.parse(localStorage.getItem(oldKey));
-
-      if (oldSettings) {
-        return normalizeSettings({
-          ...DEFAULT_SETTINGS,
-          ...oldSettings
-        });
-      }
-    }
-
-    return { ...DEFAULT_SETTINGS };
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function normalizeSettings(rawSettings) {
-  const normalized = {
-    ...DEFAULT_SETTINGS,
-    ...rawSettings
-  };
-
-  if (!normalized.voiceMode) {
-    normalized.voiceMode = normalized.voiceEnabled === false ? "off" : "custom";
-  }
-
-  normalized.voiceEnabled = normalized.voiceMode !== "off";
-
-  if (typeof normalized.effectEnabled !== "boolean") {
-    normalized.effectEnabled = true;
-  }
-
-  if (!Array.isArray(normalized.enabledCategories)) {
-    normalized.enabledCategories = DEFAULT_SETTINGS.enabledCategories;
-  }
-
-  return normalized;
-}
-
-function saveSettings() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
 }
 
 function updateOnlineStatus() {

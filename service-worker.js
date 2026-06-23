@@ -1,10 +1,13 @@
-const CACHE_NAME = "mata-monstret-cache-v4";
+const CACHE_NAME = "mata-monstret-cache-v5";
 
 const ASSETS_TO_CACHE = [
   "./",
   "./index.html",
   "./style.css",
   "./script.js",
+  "./src/audio.js",
+  "./src/data.js",
+  "./src/settings.js",
   "./manifest.json",
   "./icons/icon.svg"
 ];
