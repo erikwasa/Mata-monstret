@@ -1,4 +1,4 @@
-const CACHE_NAME = "mata-monstret-cache-v3";
+const CACHE_NAME = "mata-monstret-cache-v4";
 
 const ASSETS_TO_CACHE = [
   "./",
