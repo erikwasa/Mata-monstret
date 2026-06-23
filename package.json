@@ -1,4 +1,5 @@
 {
+  "type": "module",
   "scripts": {
     "voice:list": "node scripts/voice-lines.mjs list",
     "voice:missing": "node scripts/voice-lines.mjs missing",
