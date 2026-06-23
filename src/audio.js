@@ -1,4 +1,5 @@
 import { EFFECT_PATHS } from "./data.js";
+import { getVoiceAssetPath } from "./voice-lines.js";
 
 let lastSpokenText = "";
 let lastVoiceKey = "";
@@ -72,9 +73,7 @@ export function repeatSpeech(fallbackText, settings) {
 export async function playCustomVoice(voiceKey) {
   if (!voiceKey) return false;
 
-  const source = `./audio/voice/${voiceKey}.mp3`;
-
-  return playAudioFile(source, 1);
+  return playAudioFile(getVoiceAssetPath(voiceKey), 1);
 }
 
 export function playEffect(effectKey, settings) {
