@@ -3,6 +3,10 @@ import { getVoiceAssetPath } from "./voice-lines.js";
 
 let lastSpokenText = "";
 let lastVoiceKey = "";
+let lastSpeechParts = null;
+let activeSpeechRun = 0;
+let currentVoiceAudio = null;
+let currentVoiceCancel = null;
 
 export function setupBrowserVoice() {
   if ("speechSynthesis" in window) {
@@ -13,15 +17,16 @@ export function setupBrowserVoice() {
 export async function speak(text, voiceKey = "", settings) {
   lastSpokenText = text;
   lastVoiceKey = voiceKey;
+  lastSpeechParts = null;
 
   if (settings.voiceMode === "off") return;
 
-  stopBrowserVoice();
+  const speechRun = startSpeechRun();
 
   if (settings.voiceMode === "custom") {
     const customVoicePlayed = await playCustomVoice(voiceKey);
 
-    if (customVoicePlayed) {
+    if (customVoicePlayed || speechRun !== activeSpeechRun) {
       return;
     }
 
@@ -32,27 +37,77 @@ export async function speak(text, voiceKey = "", settings) {
   speakWithBrowserVoice(text);
 }
 
-export function speakWithBrowserVoice(text) {
-  if (!("speechSynthesis" in window)) return;
+export async function speakParts(parts, settings, fallbackText = "") {
+  const speechParts = parts.filter((part) => part?.text || part?.voiceKey);
+  const text = fallbackText || speechParts.map((part) => part.text || "").join("");
 
-  window.speechSynthesis.cancel();
+  lastSpokenText = text;
+  lastVoiceKey = "";
+  lastSpeechParts = speechParts;
 
-  const utterance = new SpeechSynthesisUtterance(text);
+  if (settings.voiceMode === "off") return;
 
-  utterance.lang = "sv-SE";
-  utterance.rate = 0.85;
-  utterance.pitch = 1.15;
+  const speechRun = startSpeechRun();
 
-  const voices = window.speechSynthesis.getVoices();
-  const swedishVoice = voices.find((voice) =>
-    voice.lang.toLowerCase().startsWith("sv")
-  );
-
-  if (swedishVoice) {
-    utterance.voice = swedishVoice;
+  if (settings.voiceMode !== "custom") {
+    speakWithBrowserVoice(text);
+    return;
   }
 
-  window.speechSynthesis.speak(utterance);
+  for (const part of speechParts) {
+    if (speechRun !== activeSpeechRun) return;
+
+    if (part.voiceKey) {
+      const customVoicePlayed = await playCustomVoice(part.voiceKey);
+
+      if (customVoicePlayed || speechRun !== activeSpeechRun) {
+        continue;
+      }
+    }
+
+    if (part.text) {
+      await speakWithBrowserVoice(part.text);
+    }
+  }
+}
+
+function startSpeechRun() {
+  activeSpeechRun += 1;
+  stopVoiceAudio();
+  stopBrowserVoice();
+
+  return activeSpeechRun;
+}
+
+export function speakWithBrowserVoice(text) {
+  return new Promise((resolve) => {
+    if (!("speechSynthesis" in window) || !text) {
+      resolve(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    utterance.lang = "sv-SE";
+    utterance.rate = 0.85;
+    utterance.pitch = 1.15;
+
+    const voices = window.speechSynthesis.getVoices();
+    const swedishVoice = voices.find((voice) =>
+      voice.lang.toLowerCase().startsWith("sv")
+    );
+
+    if (swedishVoice) {
+      utterance.voice = swedishVoice;
+    }
+
+    utterance.addEventListener("end", () => resolve(true), { once: true });
+    utterance.addEventListener("error", () => resolve(false), { once: true });
+
+    window.speechSynthesis.speak(utterance);
+  });
 }
 
 export function stopBrowserVoice() {
@@ -61,7 +116,25 @@ export function stopBrowserVoice() {
   window.speechSynthesis.cancel();
 }
 
+function stopVoiceAudio() {
+  if (currentVoiceAudio) {
+    currentVoiceAudio.pause();
+    currentVoiceAudio.currentTime = 0;
+    currentVoiceAudio = null;
+  }
+
+  if (currentVoiceCancel) {
+    currentVoiceCancel(false);
+    currentVoiceCancel = null;
+  }
+}
+
 export function repeatSpeech(fallbackText, settings) {
+  if (lastSpeechParts) {
+    speakParts(lastSpeechParts, settings, lastSpokenText || fallbackText);
+    return;
+  }
+
   if (!lastSpokenText) {
     speak(fallbackText, "", settings);
     return;
@@ -73,7 +146,7 @@ export function repeatSpeech(fallbackText, settings) {
 export async function playCustomVoice(voiceKey) {
   if (!voiceKey) return false;
 
-  return playAudioFile(getVoiceAssetPath(voiceKey), 1);
+  return playAudioFile(getVoiceAssetPath(voiceKey), 1, "voice");
 }
 
 export function playEffect(effectKey, settings) {
@@ -86,7 +159,7 @@ export function playEffect(effectKey, settings) {
   return playAudioFile(source, 0.9);
 }
 
-export function playAudioFile(source, volume = 1) {
+export function playAudioFile(source, volume = 1, channel = "effect") {
   return new Promise((resolve) => {
     const audio = new Audio(source);
     let settled = false;
@@ -98,8 +171,20 @@ export function playAudioFile(source, volume = 1) {
       if (settled) return;
 
       settled = true;
+
+      if (channel === "voice" && currentVoiceAudio === audio) {
+        currentVoiceAudio = null;
+        currentVoiceCancel = null;
+      }
+
       resolve(result);
     };
+
+    if (channel === "voice") {
+      stopVoiceAudio();
+      currentVoiceAudio = audio;
+      currentVoiceCancel = finish;
+    }
 
     audio.addEventListener("ended", () => finish(true), { once: true });
     audio.addEventListener("error", () => finish(false), { once: true });
