@@ -1,4 +1,4 @@
-const CACHE_NAME = "mata-monstret-cache-v7";
+const CACHE_NAME = "mata-monstret-cache-v8";
 
 const ASSETS_TO_CACHE = [
   "./",
@@ -8,6 +8,7 @@ const ASSETS_TO_CACHE = [
   "./src/audio.js",
   "./src/data.js",
   "./src/main.js",
+  "./src/name-options.js",
   "./src/questions.js",
   "./src/render.js",
   "./src/settings.js",

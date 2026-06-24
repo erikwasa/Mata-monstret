@@ -1,4 +1,9 @@
 import { CATEGORY_INFO, COLOR_INFO, items } from "./data.js";
+import {
+  CHILD_NAME_OPTIONS,
+  MONSTER_NAME_OPTIONS,
+  getPresetNameOptions
+} from "./name-options.js";
 
 const VOICE_PATH_PREFIX = "./audio/voice";
 
@@ -35,6 +40,18 @@ const colorVoiceLines = Object.fromEntries(
   })
 );
 
+const childNameVoiceLines = Object.fromEntries(
+  getPresetNameOptions(CHILD_NAME_OPTIONS).map((option) =>
+    [option.voiceKey, createVoiceLine(option.voiceKey, option.name, "names/children")]
+  )
+);
+
+const monsterNameVoiceLines = Object.fromEntries(
+  getPresetNameOptions(MONSTER_NAME_OPTIONS).map((option) =>
+    [option.voiceKey, createVoiceLine(option.voiceKey, option.name, "names/monsters")]
+  )
+);
+
 export const STATIC_VOICE_LINES = {
   settings_need_more_items: createVoiceLine(
     "settings_need_more_items",
@@ -55,6 +72,8 @@ export const VOICE_LINES = {
   ...itemVoiceLines,
   ...categoryVoiceLines,
   ...colorVoiceLines,
+  ...childNameVoiceLines,
+  ...monsterNameVoiceLines,
   ...STATIC_VOICE_LINES
 };
 
