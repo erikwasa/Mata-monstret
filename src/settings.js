@@ -1,5 +1,6 @@
-const STORAGE_KEY = "mata-monstret-settings-v5";
+const STORAGE_KEY = "mata-monstret-settings-v6";
 const OLD_STORAGE_KEYS = [
+  "mata-monstret-settings-v5",
   "mata-monstret-settings-v4",
   "mata-monstret-settings-v3",
   "mata-monstret-settings-v2"
@@ -13,18 +14,18 @@ export const DEFAULT_SETTINGS = {
   optionCount: 3,
   maxRounds: 5,
   childName: "",
-  monsterName: "Mumsis",
+  monsterName: "Monstret",
   enabledCategories: ["mat", "djur", "leksak", "fordon", "klader"]
 };
 
 export function loadSettings() {
   try {
-    const savedV5 = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    const savedV6 = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-    if (savedV5) {
+    if (savedV6) {
       return normalizeSettings({
         ...DEFAULT_SETTINGS,
-        ...savedV5
+        ...savedV6
       });
     }
 
@@ -85,5 +86,5 @@ export function getChildName(settings) {
 }
 
 export function getMonsterName(settings) {
-  return (settings.monsterName || "Mumsis").trim();
+  return (settings.monsterName || "Monstret").trim();
 }
