@@ -11,6 +11,7 @@ import {
   repeatSpeech,
   setupBrowserVoice,
   speak,
+  speakParts,
   testAudio
 } from "./audio.js";
 import {
@@ -31,6 +32,14 @@ import {
   showSettingsMessage as renderSettingsMessage,
   updateTitle as renderTitle
 } from "./render.js";
+import {
+  CHILD_NAME_OPTIONS,
+  CUSTOM_NAME_VALUE,
+  MONSTER_NAME_OPTIONS,
+  NO_CHILD_NAME_VALUE,
+  getNameOption,
+  getNameOptionByName
+} from "./name-options.js";
 
 const body = document.body;
 const gameTitle = document.getElementById("gameTitle");
@@ -48,7 +57,11 @@ const bowlItems = document.getElementById("bowlItems");
 const adultButton = document.getElementById("adultButton");
 const settingsPanel = document.getElementById("settingsPanel");
 const closeSettingsButton = document.getElementById("closeSettingsButton");
+const childNameSelect = document.getElementById("childNameSelect");
+const childCustomNameRow = document.getElementById("childCustomNameRow");
 const childNameInput = document.getElementById("childNameInput");
+const monsterNameSelect = document.getElementById("monsterNameSelect");
+const monsterCustomNameRow = document.getElementById("monsterCustomNameRow");
 const monsterNameInput = document.getElementById("monsterNameInput");
 const voiceSelect = document.getElementById("voiceSelect");
 const effectSelect = document.getElementById("effectSelect");
@@ -69,6 +82,7 @@ let buttonsLocked = false;
 let deferredInstallPrompt = null;
 let dancePauseUsed = false;
 
+populateNameSelects();
 applySettingsToUI();
 updateTitle();
 bindEvents();
@@ -85,8 +99,11 @@ function bindEvents() {
   resetSettingsButton.addEventListener("click", resetSettings);
   testAudioButton.addEventListener("click", () => testAudio(settings, showSettingsMessage));
 
-  childNameInput.addEventListener("input", () => updateSetting("childName", childNameInput.value.trim(), true));
-  monsterNameInput.addEventListener("input", () => updateSetting("monsterName", monsterNameInput.value.trim(), true));
+  childNameSelect.addEventListener("change", updateChildNameFromSelect);
+  childNameInput.addEventListener("input", updateChildNameFromInput);
+  monsterNameSelect.addEventListener("change", updateMonsterNameFromSelect);
+  monsterNameInput.addEventListener("input", updateMonsterNameFromInput);
+
   voiceSelect.addEventListener("change", () => {
     settings.voiceMode = voiceSelect.value;
     settings.voiceEnabled = settings.voiceMode !== "off";
@@ -122,6 +139,19 @@ function updateSetting(key, value, shouldUpdateTitle = false) {
 
   if (shouldUpdateTitle) {
     updateTitle();
+  }
+
+  showSettingsMessage("Sparat!");
+}
+
+function updateNameSetting(key, value) {
+  settings[key] = value;
+  saveSettings(settings);
+  updateTitle();
+  refreshMonsterName();
+
+  if (!body.classList.contains("is-playing")) {
+    showModeIntro();
   }
 
   showSettingsMessage("Sparat!");
@@ -215,7 +245,7 @@ function handleCorrectChoice(item, button) {
 
   const feedback = getCorrectFeedback();
   speech.textContent = feedback.text;
-  speak(feedback.text, feedback.voiceKey, settings);
+  speakFeedback(feedback);
 
   const shouldDance = !dancePauseUsed && correctAnswers >= DANCE_AFTER_CORRECT && currentRound < settings.maxRounds;
 
@@ -234,11 +264,23 @@ function getCorrectFeedback() {
     { text: "Mums! Tack!", voiceKey: "correct_mums" },
     { text: "Jättegott!", voiceKey: "correct_good" },
     { text: "Bra matat!", voiceKey: "correct_feeding" },
-    { text: `${monsterName} blir glad!`, voiceKey: "correct_happy" },
+    {
+      text: `${monsterName} blir glad!`,
+      parts: [createMonsterNameSpeechPart(), { text: " blir glad!" }]
+    },
     { text: "Tack för maten!", voiceKey: "correct_thanks" }
   ];
 
   return getRandomItem(feedbacks);
+}
+
+function speakFeedback(feedback) {
+  if (feedback.parts) {
+    speakParts(feedback.parts, settings, feedback.text);
+    return;
+  }
+
+  speak(feedback.text, feedback.voiceKey, settings);
 }
 
 function handleWrongChoice(item, button) {
@@ -249,7 +291,7 @@ function handleWrongChoice(item, button) {
 
   const feedback = `Nästan! Det där var ${item.name}. Försök igen.`;
   speech.textContent = feedback;
-  speak(feedback, "try_again", settings);
+  speak(feedback, "", settings);
 
   setTimeout(() => {
     button.classList.remove("wrong");
@@ -262,13 +304,14 @@ function handleWrongChoice(item, button) {
 
 function startDancePause() {
   const monsterName = getMonsterName();
+  const message = `${monsterName} dansar!`;
 
   clearChoices(choices);
   instruction.textContent = "Danspaus!";
-  speech.textContent = `${monsterName} dansar!`;
+  speech.textContent = message;
   setMonsterMood("dancing");
   playEffect("dance", settings);
-  speak(`${monsterName} dansar!`, "dance", settings);
+  speakParts([createMonsterNameSpeechPart(), { text: " dansar!" }], settings, message);
 
   setTimeout(nextRound, 2200);
 }
@@ -283,12 +326,25 @@ function endGame() {
   const endMessage = childName
     ? `Nu är ${monsterName} mätt. Bra jobbat, ${childName}!`
     : `Nu är ${monsterName} mätt. Tack för maten!`;
+  const endParts = childName
+    ? [
+        { text: "Nu är " },
+        createMonsterNameSpeechPart(),
+        { text: " mätt. Bra jobbat, " },
+        createChildNameSpeechPart(),
+        { text: "!" }
+      ]
+    : [
+        { text: "Nu är " },
+        createMonsterNameSpeechPart(),
+        { text: " mätt. Tack för maten!" }
+      ];
 
   setMonsterMood("full");
   playEffect("end", settings);
   instruction.textContent = "Bra jobbat!";
   speech.textContent = endMessage;
-  speak(endMessage, "end", settings);
+  speakParts(endParts, settings, endMessage);
 
   startButton.textContent = "Spela igen";
   startButton.classList.remove("hidden");
@@ -306,6 +362,32 @@ function getChildName() {
 
 function getMonsterName() {
   return readMonsterName(settings);
+}
+
+function getChildNameVoiceKey() {
+  return getNameOptionByName(CHILD_NAME_OPTIONS, getChildName())?.voiceKey || "";
+}
+
+function getMonsterNameVoiceKey() {
+  return getNameOptionByName(MONSTER_NAME_OPTIONS, getMonsterName())?.voiceKey || "";
+}
+
+function createChildNameSpeechPart() {
+  const childName = getChildName();
+
+  if (!childName) return null;
+
+  return {
+    text: childName,
+    voiceKey: getChildNameVoiceKey()
+  };
+}
+
+function createMonsterNameSpeechPart() {
+  return {
+    text: getMonsterName(),
+    voiceKey: getMonsterNameVoiceKey()
+  };
 }
 
 function showModeIntro() {
@@ -362,9 +444,33 @@ function resetSettings() {
   showSettingsMessage("Återställt!");
 }
 
+function populateNameSelects() {
+  fillNameSelect(childNameSelect, CHILD_NAME_OPTIONS);
+  fillNameSelect(monsterNameSelect, MONSTER_NAME_OPTIONS);
+}
+
+function fillNameSelect(selectElement, options) {
+  selectElement.innerHTML = "";
+
+  options.forEach((option) => {
+    const optionElement = document.createElement("option");
+
+    optionElement.value = option.value;
+    optionElement.textContent = option.label;
+    selectElement.appendChild(optionElement);
+  });
+}
+
 function applySettingsToUI() {
-  childNameInput.value = settings.childName || "";
-  monsterNameInput.value = settings.monsterName || "Mumsis";
+  const childName = getChildName();
+  const childNameOption = childName ? getNameOptionByName(CHILD_NAME_OPTIONS, childName) : null;
+  const monsterName = getMonsterName();
+  const monsterNameOption = getNameOptionByName(MONSTER_NAME_OPTIONS, monsterName);
+
+  childNameSelect.value = childName ? childNameOption?.value || CUSTOM_NAME_VALUE : NO_CHILD_NAME_VALUE;
+  childNameInput.value = childNameOption ? "" : childName;
+  monsterNameSelect.value = monsterNameOption?.value || CUSTOM_NAME_VALUE;
+  monsterNameInput.value = monsterNameOption ? "" : monsterName;
   voiceSelect.value = settings.voiceMode || "custom";
   effectSelect.value = settings.effectEnabled ? "on" : "off";
   optionCountSelect.value = String(settings.optionCount);
@@ -374,7 +480,57 @@ function applySettingsToUI() {
     checkbox.checked = settings.enabledCategories.includes(checkbox.value);
   });
 
+  updateNameControlVisibility();
   updateModeButtons();
+}
+
+function updateChildNameFromSelect() {
+  const selectedOption = getNameOption(CHILD_NAME_OPTIONS, childNameSelect.value);
+  const childName = selectedOption?.value === CUSTOM_NAME_VALUE
+    ? childNameInput.value.trim()
+    : selectedOption?.name || "";
+
+  updateNameControlVisibility();
+  updateNameSetting("childName", childName);
+}
+
+function updateChildNameFromInput() {
+  if (childNameSelect.value !== CUSTOM_NAME_VALUE) return;
+
+  updateNameSetting("childName", childNameInput.value.trim());
+}
+
+function updateMonsterNameFromSelect() {
+  const selectedOption = getNameOption(MONSTER_NAME_OPTIONS, monsterNameSelect.value);
+  const monsterName = selectedOption?.value === CUSTOM_NAME_VALUE
+    ? monsterNameInput.value.trim()
+    : selectedOption?.name || DEFAULT_SETTINGS.monsterName;
+
+  updateNameControlVisibility();
+  updateNameSetting("monsterName", monsterName);
+}
+
+function updateMonsterNameFromInput() {
+  if (monsterNameSelect.value !== CUSTOM_NAME_VALUE) return;
+
+  updateNameSetting("monsterName", monsterNameInput.value.trim());
+}
+
+function updateNameControlVisibility() {
+  childCustomNameRow.classList.toggle("hidden", childNameSelect.value !== CUSTOM_NAME_VALUE);
+  monsterCustomNameRow.classList.toggle("hidden", monsterNameSelect.value !== CUSTOM_NAME_VALUE);
+}
+
+function refreshMonsterName() {
+  renderMonsterMood(monster, getCurrentMonsterMood(), getMonsterName());
+}
+
+function getCurrentMonsterMood() {
+  const moodClass = Array.from(monster.classList).find((className) =>
+    className.startsWith("monster-")
+  );
+
+  return moodClass?.replace("monster-", "") || "hungry";
 }
 
 function updateModeButtons() {
